@@ -1,0 +1,23 @@
+{
+  "skill_name": "engineer-perf-review",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I need to write up the summer round perf review for Alice. Her JIRA username is alice.smith, GitHub is asmith-co, Slack is @alice.smith. Check #team-backend and #team-eng channels. Use the default cycle dates.",
+      "expected_output": "A structured review for Alice (Senior SE I) with 2-3 Strengths and 2-3 Areas to Grow, each backed by specific evidence from JIRA, GitHub, Slack, and 1:1 notes as context. Calibration note against Senior SE I ladder expectations. Both a chat summary and a .docx file.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Can you do the summer round perf reviews for Bob and Charlie? Bob's jira is bob.jones, github bjones-co, slack @bob.jones. Charlie's jira is charlie.chen, github cchen-co, slack @charlie.chen. Channels: #team-backend, #team-eng",
+      "expected_output": "Individual reviews for Bob (Senior SE II) and Charlie (Senior SE II), each with Strengths and Areas to Grow calibrated to Senior SE II expectations. Team comparison table. Single .docx with all content.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "Write up Dana's perf review for the summer cycle. jira: dana.lee, github: dlee-co, slack @dana.lee, check #team-backend and #architecture channels",
+      "expected_output": "A review for Dana (Senior SE I) calibrated against Senior SE I expectations (large project ownership, driving technical areas, high output). Evidence from JIRA, GitHub, Slack, and 1:1 notes as context. Chat summary plus .docx output.",
+      "files": []
+    }
+  ]
+}

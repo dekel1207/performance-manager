@@ -1,0 +1,22 @@
+{
+  "Alice": {
+    "level": "Senior SE I",
+    "email": "alice@example.com",
+    "jira_display_name": "Alice Smith",
+    "jira_account_id": "<jira-account-id>",
+    "github_username": "asmith-co",
+    "slack_handle": "@alice.smith",
+    "slack_channels": ["#team-backend", "#team-eng"],
+    "one_on_one_doc_id": "<google-doc-id>"
+  },
+  "Bob": {
+    "level": "Senior SE II",
+    "email": "bob@example.com",
+    "jira_display_name": "Bob Jones",
+    "jira_account_id": "<jira-account-id>",
+    "github_username": "bjones-co",
+    "slack_handle": "@bob.jones",
+    "slack_channels": ["#team-backend"],
+    "one_on_one_doc_id": "<google-doc-id>"
+  }
+}

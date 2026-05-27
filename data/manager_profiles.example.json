@@ -1,0 +1,28 @@
+{
+  "Carol": {
+    "last_name": "Williams",
+    "level": "EM",
+    "team_keys": ["TEAM"],
+    "slack_handle": "carol.williams@example.com",
+    "slack_channels": [],
+    "slack_irt_discovery": "datadog",
+    "escalation_team_names": ["My Team"],
+    "one_on_one_doc_id": "<google-doc-id>",
+    "expectations_doc_path": null,
+    "okr_quarters_in_window": ["FY26Q4", "FY27Q1"],
+    "okr_quarters_missing_in_registry": []
+  },
+  "Dave": {
+    "last_name": "Brown",
+    "level": "SEM",
+    "team_keys": ["TEAM2"],
+    "slack_handle": "dave.brown@example.com",
+    "slack_channels": [],
+    "slack_irt_discovery": "datadog",
+    "escalation_team_names": ["My Other Team"],
+    "one_on_one_doc_id": "<google-doc-id>",
+    "expectations_doc_path": null,
+    "okr_quarters_in_window": ["FY26Q4", "FY27Q1"],
+    "okr_quarters_missing_in_registry": []
+  }
+}

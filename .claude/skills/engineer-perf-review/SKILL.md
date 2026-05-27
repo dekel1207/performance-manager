@@ -1,0 +1,579 @@
+---
+name: engineer-perf-review
+description: >
+  Evaluates individual software engineers (ICs) for a Braze performance review cycle and produces structured written reviews. Use this skill whenever the user asks to evaluate, review, assess, or write up performance for an engineer or a group of engineers — even if they say things like "write up a review for X", "assess how Y is doing", "compare my engineers", "do the perf cycle for the team", or "help me with performance reviews". This skill orchestrates gathering data from JIRA, GitHub, Slack, and 1:1 notes, calibrates against the Engineering Ladder, and outputs both a chat summary and a .docx file. Always invoke this skill when performance review or engineer evaluation is mentioned.
+---
+
+# Engineer Performance Review Skill
+
+You are helping an engineering manager at Braze evaluate individual ICs for a performance review cycle. Your output for each engineer is a structured, evidence-backed written review calibrated against the Braze Engineering Ladder.
+
+## Cycle configuration
+
+Cycle name, dates, and output folder are defined in:
+```
+/Users/dekel.albocher/Documents/Claude/Projects/Performance manager/data/cycles.json
+```
+
+At skill startup, before doing anything else, resolve the active cycle:
+
+1. Read `data/cycles.json`. If the file is absent or unreadable, stop immediately and tell the user: "Cannot find `data/cycles.json`. Please create it before running a review." Do not fall back to any hardcoded defaults.
+2. If the file contains exactly one entry, auto-select it silently and continue (no prompt shown).
+3. If the file contains two or more entries, list them and ask the user to choose:
+   > "Which cycle are you running?
+   > (1) Summer Round — Nov 1 2025 – Apr 30 2026
+   > (2) ..."
+4. Set these variables from the selected entry for use throughout the rest of the skill:
+   - `<cycle.name>` — e.g. "Summer Round"
+   - `<cycle.slug>` — e.g. "summer-2026"
+   - `<cycle.start>` — e.g. "2025-11-01"
+   - `<cycle.end>` — e.g. "2026-04-30"
+
+Only consider data within `<cycle.start>` – `<cycle.end>`. Ignore anything outside this range.
+
+## Step 0: Load cycle config, engineer profiles, and raw data cache
+
+Before asking the user for anything:
+1. Complete the cycle selection described in "Cycle configuration" above — this must happen first.
+2. Then check for persisted state in two locations:
+
+### Engineer profiles file
+```
+/Users/dekel.albocher/Documents/Claude/Projects/Performance manager/data/engineer_profiles.json
+```
+
+This file stores known identifiers for each engineer. If it exists, load it. Example structure:
+```json
+{
+  "Uriel": {
+    "level": "Senior SE I",
+    "jira_account_id": "712020:abc123",
+    "jira_display_name": "Uriel Sharon",
+    "github_username": "uriel-sharon",
+    "slack_handle": "@uriel.sharon",
+    "slack_channels": ["#team-canvas", "#pp-backend"],
+    "one_on_one_doc_id": "1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms"
+  },
+  "Sheryan": { ... }
+}
+```
+
+### Raw data cache directory
+```
+/Users/dekel.albocher/Documents/Claude/Projects/Performance manager/data/raw/
+```
+
+Raw data files are saved per-engineer per-source:
+```
+data/raw/<FirstName>_jira_assigned_<start>_<end>.json
+data/raw/<FirstName>_jira_reported_<start>_<end>.json
+data/raw/<FirstName>_github_prs_merged_<start>_<end>.json
+data/raw/<FirstName>_github_prs_reviewed_<start>_<end>.json
+data/raw/<FirstName>_slack_<start>_<end>.json
+```
+
+Dates in filenames use ISO format: `YYYY-MM-DD`. Example:
+```
+data/raw/Uriel_jira_assigned_<cycle.start>_<cycle.end>.json
+```
+
+## Step 1: Collect runtime inputs
+
+The five engineers in scope for this performance review cycle are:
+
+| Name | Level |
+|------|-------|
+| Uriel | Senior SE I |
+| Sheryan | Senior SE I |
+| Tae | Senior SE I |
+| Kirt | Senior SE II |
+| Anubhav | Senior SE II |
+
+At the start of a session, ask the user which engineer(s) to review.
+
+**Before asking for identifiers**, check the engineer profiles file loaded in Step 0. For any field already known (JIRA account ID, GitHub username, Slack handle, channels, 1:1 doc), use the cached value silently — do not ask for it. Only ask for fields that are missing from the cache.
+
+If the profiles file is missing or the engineer has no entry, ask for:
+```
+For each engineer:
+- JIRA username (the display name or account ID used in JIRA project PP)
+- GitHub username
+- Slack handle (e.g. @uriel.sharon)
+- Slack channels to check (e.g. #team-canvas, #pp-backend)
+- Google Docs link for 1:1 notes
+- Cycle start/end dates (resolved from `data/cycles.json` — do not ask the user for these)
+```
+
+**After collecting any new information**, immediately update the engineer profiles file:
+1. If the file does not exist, create it with the new data.
+2. If it exists, merge the new fields into the existing entry — never overwrite fields that were already present unless the user explicitly corrects them.
+3. Save it back to `data/engineer_profiles.json`.
+
+If the user provides partial info (e.g. just a name), work with what you have and note gaps. If the user says "do the whole team", review all five engineers.
+
+## Step 2: Read the Engineering Ladder
+
+The ladder lives at:
+```
+/Users/dekel.albocher/Documents/Claude/Projects/Performance manager/cycles/<cycle.slug>/input/Engineering Ladder.docx
+```
+
+Extract it with:
+```bash
+pandoc "/Users/dekel.albocher/Documents/Claude/Projects/Performance manager/cycles/<cycle.slug>/input/Engineering Ladder.docx" -o /tmp/eng_ladder.md
+```
+
+Use the ladder as the **sole calibration reference** for all ICs. Key levels and their scope:
+- **SE I** — individual tasks/tickets; building strong engineering foundation
+- **SE II** — medium-sized projects/features; deep product/tech understanding; minimal oversight
+- **Senior SE I** — large projects/epics; driving technical and product areas; high output
+- **Senior SE II** — OKRs/quarter-long plans; defining medium/long-term technical direction
+- **Staff** — team technical vision and quality; multi-team influence within division
+- **Senior Staff** — division-wide technical leadership; architectural design; incident leadership
+
+## Step 3: Find and read 1:1 notes
+
+**Important:** 1:1 notes are raw conversation notes from weekly/biweekly check-ins — they are NOT formal assessments. Treat them as background context to inform your review, not as source-of-truth evaluations.
+
+Check the engineer profiles file for a cached `one_on_one_doc_id`. If present, use it directly with `mcp__gdocs__get_document` — do not ask the user for it.
+
+If not cached, ask the user:
+
+> "Please share the Google Docs link for your 1:1 notes with [engineer name]."
+
+Once provided, extract the document ID from the URL, save it to the engineer's profiles entry, and read it using the `mcp__gdocs__get_document` tool. Mine the notes for:
+- Recurring themes that came up across multiple meetings
+- Specific feedback Dekel gave the engineer (look for Dekel's perspective in the notes)
+- Growth signals — things the engineer is improving on or struggling with
+- Projects, initiatives, or concerns that were discussed
+- Any patterns around communication, ownership, or collaboration
+
+Use this as **context** — don't quote raw notes verbatim in the review output.
+
+## Team OKRs (use for epic impact context)
+
+**FY26Q4 OKRs (Nov 2025 – Jan 2026):**
+- Product Health: Shopify API Version Upgrade — stay within one release of Shopify's latest
+- E2E Testing — comprehensive, reliable E2E automation running on daily cadence
+- System Monitoring — all monitors and alerts per SRE guidance implemented and active
+- Refactor — standardize the integration bridge to improve consistency and enable self-service to other PDE teams
+- eCommerce events GA — release eCommerce conversion event type and add to Campaign/Canvas analytics
+
+**FY27Q1 OKRs (Feb – Apr 2026):**
+- eCommerce events feature parity — release Campaign/Canvas revenue; release "Places Order" exit criteria; prepare for eComm events GA release (Delta Cart Updates)
+- Support additional Shopify product data for enterprise — release Shopify tags, metafields, and collections to all customers (all DONE)
+- Granular permissions — add "edit technology partners" permissions (DONE)
+
+When writing epic impact summaries, connect the engineer's work to the relevant OKR. For example: Integration Bridge Refactor maps to the FY26Q4 "Refactor" OKR; Shopify Tags/Collections/Metafields maps to the FY27Q1 "Support additional Shopify product data" OKR.
+
+## Step 4: Gather JIRA data (project PP)
+
+### Cache check — do this before any live query
+
+For each JIRA query type (`jira_assigned`, `jira_reported`), check whether a raw cache file already exists for this engineer:
+```
+data/raw/<FirstName>_jira_assigned_<start>_<end>.json
+data/raw/<FirstName>_jira_reported_<start>_<end>.json
+```
+
+**If a cache file exists and its date range fully covers the requested cycle window**, load it directly and skip the live query entirely.
+
+**If a cache file exists but only partially covers the requested window** (e.g. cached from `<cycle.start>` to mid-cycle, but the full `<cycle.end>` is needed):
+1. Load the cached records.
+2. Fetch only the uncovered date range (e.g. from mid-cycle to `<cycle.end>`).
+3. Merge the new results with the cached records — deduplicate by ticket key.
+4. Save the merged result back to a cache file with the full combined date range.
+
+**If no cache file exists**, run the full live query and save results to cache.
+
+### Cache file format
+
+Each cache file is a JSON array of ticket objects:
+```json
+[
+  {
+    "key": "PP-1234",
+    "summary": "...",
+    "status": "Done",
+    "resolutiondate": "2026-02-14",
+    "created": "2026-01-10",
+    "assignee": "Uriel Sharon",
+    "reporter": "Uriel Sharon",
+    "issuetype": "Story",
+    "epic_key": "PP-800",
+    "epic_name": "Integration Bridge Refactor"
+  },
+  ...
+]
+```
+
+### Live queries (when cache miss or partial coverage)
+
+Use the `mcp__atlassian__searchJiraIssuesUsingJql` tool. Run these queries for the **uncovered** date range only:
+
+#### Primary ownership (tickets assigned and completed by the engineer)
+```
+project = PP AND assignee = "<jira_account_id>" AND status in (Done, Closed) AND resolutiondate >= "<fetch_start>" AND resolutiondate <= "<fetch_end>"
+```
+
+#### Collaboration (subtasks/tasks within stories owned by others)
+```
+project = PP AND assignee = "<jira_account_id>" AND issueType in (Sub-task, Task) AND status in (Done, Closed) AND resolutiondate >= "<fetch_start>" AND resolutiondate <= "<fetch_end>"
+```
+
+#### Initiative/proactiveness (tickets created by the engineer)
+```
+project = PP AND reporter = "<jira_account_id>" AND created >= "<fetch_start>" AND created <= "<fetch_end>"
+```
+
+For **each ticket**, surface:
+- Ticket key, summary, status
+- **Parent Epic** (look up the epic link field) — identifies product area
+- Whether they were the sole owner vs. collaborator
+
+Organize findings by epic/product area. For each epic, count:
+- Stories/tickets **closed** by the engineer (ownership signal)
+- Stories/tickets **created** by the engineer as reporter (initiative signal)
+- Approximate % of their total cycle output this epic represents
+
+**Pagination — get all results, not just the first 100:** JIRA caps results at 100 per query. Always paginate using `startAt` until you get a full picture:
+
+```
+# Page 1: startAt=0, maxResults=100
+# Page 2: if page 1 returned exactly 100, fetch with startAt=100
+# Page 3: if page 2 returned exactly 100, fetch with startAt=200
+# Stop when a page returns fewer than 100 results
+```
+
+The `searchJiraIssuesUsingJql` tool accepts `startAt` and `maxResults` parameters — use them. Repeat until the page is not full. Sum all pages for the true total.
+
+**After fetching live data**, immediately save/merge to the cache file before continuing.
+
+## Step 5: Gather GitHub data
+
+### Cache check — do this before any live query
+
+For each GitHub query type (`github_prs_merged`, `github_prs_reviewed`), check whether a raw cache file already exists:
+```
+data/raw/<FirstName>_github_prs_merged_<start>_<end>.json
+data/raw/<FirstName>_github_prs_reviewed_<start>_<end>.json
+```
+
+**If a cache file exists and its date range fully covers the requested window**, load it and skip the live query.
+
+**If a cache file exists but only partially covers the window**, load the cached records, fetch only the uncovered date range, merge (deduplicate by PR number + repo), and save back with the full combined date range.
+
+**If no cache file exists**, run the full live query and save results.
+
+### Cache file format
+
+```json
+[
+  {
+    "number": 1234,
+    "title": "...",
+    "url": "https://github.com/...",
+    "mergedAt": "2026-02-14T10:00:00Z",
+    "repository": { "nameWithOwner": "braze/braze-growth-services" }
+  },
+  ...
+]
+```
+
+### Live queries (when cache miss or partial coverage)
+
+Use the `gh` CLI. Replace `<github_username>` and dates with the **uncovered** range only:
+
+#### PRs opened and merged
+```bash
+gh search prs --author <github_username> --merged --merged-at "<fetch_start>..<fetch_end>" --json number,title,url,mergedAt,repository --limit 500
+```
+
+#### PRs reviewed
+```bash
+gh search prs --reviewed-by <github_username> --updated "<fetch_start>..<fetch_end>" --json number,title,url,repository --limit 500
+```
+
+Use `--limit 500` to avoid the default 100-result cap. GitHub's search API supports up to 1000 results via the CLI.
+
+Look for:
+- Volume and complexity of PRs authored
+- Breadth of codebases touched
+- Quality and quantity of reviews (are they active reviewers? do they leave substantive comments?)
+- Any large/foundational changes
+
+**Query cap handling:** If a GitHub search returns exactly 500 results (the limit), write "500+" — the real count may be higher.
+
+**After fetching live data**, immediately save/merge to the cache file before continuing.
+
+## Step 6: Gather Slack data
+
+### Cache check — do this before any live query
+
+Check whether a Slack cache file already exists for this engineer:
+```
+data/raw/<FirstName>_slack_<start>_<end>.json
+```
+
+**If a cache file exists and fully covers the window**, load it and skip the live query.
+
+**If a cache file exists but only partially covers the window**, load cached records, fetch only the uncovered date range, merge (deduplicate by message timestamp + channel), and save back with the full combined date range.
+
+**If no cache file exists**, run the full live query and save results.
+
+### Cache file format
+
+```json
+[
+  {
+    "channel": "#pp-backend",
+    "timestamp": "2026-02-14T10:30:00Z",
+    "text": "...",
+    "thread_ts": "...",
+    "user": "@uriel.sharon"
+  },
+  ...
+]
+```
+
+### Live queries (when cache miss or partial coverage)
+
+Use `mcp__slack__slack_search_public_and_private` or `mcp__slack__slack_read_channel` for each specified channel. Search for the engineer's handle or display name over the **uncovered** date range only.
+
+**Proactively expand channel coverage:** Beyond the channels specified by the user, search for additional relevant channels by looking at what channels the engineer posted in during the cycle (visible in search results). If you find a channel that appears highly relevant (e.g., a project channel named after their main epic, an incident channel, a cross-team channel), include it. Note any additional channels you searched in the digest.
+
+Assess:
+- **Helpfulness**: answering questions, unblocking teammates
+- **Technical depth**: quality of explanations, debugging help
+- **Responsiveness**: speed and consistency of engagement
+- **Initiative**: proactively sharing knowledge, raising issues
+
+**After fetching live data**, immediately save/merge to the cache file before continuing.
+
+## Step 7: Produce a data digest
+
+The output at this stage is a **data digest** — concise, source-attributed bullet points capturing what the data shows. This is not a polished review narrative. The manager will use this digest as raw material to write the final evaluation.
+
+Do not write narrative paragraphs. Do not editorialize or coach. Just surface what the evidence shows, organized by source and theme.
+
+### Per-engineer digest format
+
+```
+## [Engineer Name] — [Role/Level]
+Review Period: <cycle.start> – <cycle.end>
+
+### From JIRA
+- **[Epic name (key)] (~X% of cycle):** [1 sentence on what this epic is and why it matters — connect to team OKR where relevant]. Engineer's contribution: [1–2 sentences on what they owned and the outcome]. Tickets closed: N. Tickets created: N. Notable: [2–3 standout ticket keys + one-liner each, only if they warrant individual mention]
+- ...
+
+Time investment estimate: derive rough % from the per-epic ticket counts (tickets closed in this epic / sum of all per-epic closed tickets). Never use a capped query total as the denominator. Label as approximate (e.g. "~40% of cycle").
+
+**Important:** Always paginate JIRA queries and use `--limit 500` for GitHub so totals are complete and accurate. Report exact counts, not estimates.
+
+### From GitHub
+- PRs merged: [count], across [repos listed]
+- PRs reviewed: [count]
+- Notable: [any large/foundational PRs or high-volume review activity worth flagging]
+
+### From Slack ([channel names])
+- [bullet per meaningful engagement — help given, thread owned, cross-team coordination, proactive signal]
+- ...
+
+### From 1:1 notes
+- [bullet per recurring theme, feedback given, or growth signal from the Nov–Apr window only]
+- [Do NOT include comp, ratings, scores, or salary numbers]
+
+### Ladder signals
+- Strengths vs [Level] bar: [2–3 bullet points mapping observed behaviors to ladder expectations]
+- Gaps vs [Level] bar: [2–3 bullet points mapping observed gaps to ladder expectations]
+```
+
+**Calibration guidance by level:**
+- For **SE I/II**: focus on execution quality, code output, PR practices, ticket throughput
+- For **Senior SE I/II**: focus on ownership breadth, initiative, design influence, cross-team impact
+- For **Staff/Senior Staff**: focus on technical vision, multi-team influence, architectural contributions, incident leadership
+
+**What to exclude from the digest:**
+- Comp, performance scores, ratings, or salary numbers from 1:1 notes
+- Events or data outside the <cycle.start> – <cycle.end> window
+- Generic observations without specific evidence (no "is a good communicator" without a concrete example)
+
+## Step 7b: Save a raw evidence file
+
+Before writing the review, save a structured evidence file to the project root. This file is your reference for answering follow-up questions like "why did you write X?" or "can you give me an example of Y?" after the review is delivered.
+
+### File path
+```
+/Users/dekel.albocher/Documents/Claude/Projects/Performance manager/cycles/<cycle.slug>/output/<FirstName>_<LastName>_<cycle.start>_<cycle.end>_evidence.md
+```
+
+Example:
+```
+/Users/dekel.albocher/Documents/Claude/Projects/Performance manager/cycles/<cycle.slug>/output/Uriel_Silva_<cycle.start>_<cycle.end>_evidence.md
+```
+
+### Evidence file format
+
+For each claim you intend to make in the written review, record the specific source data that backs it. Organize by review claim (not by data source). Be specific — include ticket keys, PR numbers, Slack message dates/channels, and 1:1 note dates. This is not a summary; it is a traceable map from review language back to raw evidence.
+
+```markdown
+# Evidence File — [Engineer Name]
+Review Period: [start] – [end]
+
+## Accomplishment claims
+
+### [Short label matching the accomplishment paragraph opener]
+- JIRA: [ticket key] — [one-line description of what it shows]
+- JIRA: [ticket key] — ...
+- GitHub: [PR number / repo] — [what it shows]
+- Slack: [channel] [date] — [what was said / done]
+- 1:1: [date] — [relevant note]
+
+### [Second accomplishment claim label]
+- ...
+
+## Improvement claims
+
+### [Short label matching the improvement paragraph opener]
+- JIRA: [ticket key] — [what it shows about the gap]
+- Slack: [channel] [date] — [relevant signal]
+- 1:1: [date] — [feedback given or pattern noted]
+
+### [Second improvement claim label]
+- ...
+```
+
+### How this file is used
+
+After delivering the review, if asked "why did you write X?" or "can you give an example of Y?", read this file and answer directly from the evidence recorded here. Do not rely on memory or re-query data sources.
+
+## Step 8: Write the review section
+
+Using the data digest from Step 7 and the ladder signals, write the formal performance review for each engineer. This is the manager-facing written review that will be shared with the IC and uploaded to Lattice. It must follow the Braze review writing framework exactly.
+
+### Review writing rules (non-negotiable)
+
+**Language and tone:**
+- Write in **past tense** throughout — past performance does not guarantee future behavior
+- Describe **events, not attributes** — "Led the Integration Bridge Refactor scoping and delivered 60+ tickets" not "is a strong technical leader"
+- **Do not mix messages** — accomplishment paragraphs contain no negatives; improvement paragraphs contain no positives (be very careful here)
+- Use **"can" / "could"** for a score-3 IC; use **"must" / "should"** only for score-2 or below
+- **Do not excuse or explain** behavior in the improvements section — just state the gap, give the example, describe the impact, give advice
+- Impact must always be framed as benefit to **team / org / Braze / customers** — not personal growth
+- Avoid "_I expect them to_" or "_I'd like to see_" — frame improvements in terms of team/company benefit
+- Leave the door open for change — say "significantly more" not "mastered"
+- Be **concise** — clear paragraphs, no padding, no narration for its own sake
+- Don't narrate the full event — refer to it for context, focus on the impact and the behavior to reinforce or change
+
+**Structure — Accomplishments (2–3 paragraphs):**
+
+Each paragraph follows this pattern:
+1. **Opener** (1 sentence, optionally bold): What went well — generalize if multiple examples follow. Tie to the ladder.
+2. **Example(s)**: Specific events that support the opener. Every sentence must relate to the opener.
+3. **Impact**: What did doing this well mean for the team/org/Braze/customers?
+4. **Closer** (optionally bold): Format — *"Because [name] did X well, [team/Braze/customers] gained Y."* Write it forward-looking enough that it applies beyond the specific example.
+
+After the accomplishment paragraphs, include a **peer quotes block** — **only if peer review quotes have been explicitly provided by the user as input**. Do not fabricate or infer quotes from other data sources. If no peer quotes were provided, omit this block entirely.
+
+When peer quotes are provided:
+- Direct quotes only — no paraphrasing, no grammar correction, no combining quotes
+- Only include quotes from the accomplishments section of peer reviews (no improvement feedback)
+- Choose distinct quotes that don't overlap in topic
+- Italicize quotes
+
+**Structure — Improvements (2–3 paragraphs):**
+
+Each paragraph follows this pattern:
+1. **Opener** (1 sentence, optionally bold): What they should improve — direct, no ambiguity, no room for interpretation. Tie to the ladder.
+2. **Example(s)**: Specific missed opportunities or events where the gap was visible.
+3. **Impact**: What was the cost of not doing this better — for the team/org/company?
+4. **Advice**: Concrete, actionable guidance. This can be the bulk of the paragraph.
+5. **Closer** (optionally bold): Format — *"By doing X better/differently, [team/Braze/project] will gain Y."* Inspiring, forward-looking, not too narrow.
+
+### What to pull from the digest
+
+| Digest section | Use for |
+|---|---|
+| From JIRA — epics with high % of cycle | Accomplishment openers and examples |
+| From GitHub — PR volume, cross-repo breadth | Supporting evidence in accomplishments |
+| From Slack — cross-team coordination, incident response, knowledge sharing | Accomplishment examples, especially for collaboration/leadership paragraphs |
+| From 1:1 notes — recurring themes, manager feedback | Improvements openers and examples (use carefully — don't quote verbatim) |
+| Ladder signals — Gaps vs level bar | Improvements openers |
+| Ladder signals — Strengths vs level bar | Accomplishment openers |
+| Peer reviews (from the assessment Google Doc) | Peer quotes block |
+
+### Output format
+
+The output is a single `.docx` file per engineer (see Step 10 for generation details). Do **not** produce a `review_output.md` file. All content — data digest and written review — goes into the `.docx`.
+
+## Step 9: Team comparison (if reviewing multiple engineers)
+
+After all individual digests, produce a side-by-side comparison table:
+
+```
+## Team Comparison — <cycle.name> [YYYY]
+
+| Engineer | Level | JIRA Tickets | PRs Merged | PRs Reviewed | Key Product Areas | Ladder signal |
+|----------|-------|-------------|------------|--------------|-------------------|---------------|
+| ...      | ...   | ...         | ...        | ...          | ...               | meeting / exceeding / below |
+
+### Cross-team patterns (bullets only)
+- [Pattern across engineers — concentration of work, collaboration dynamics, who is punching above level, who needs more support]
+- ...
+```
+
+## Step 10: Generate .docx output
+
+Produce a `.docx` file using the `docx` npm library. This is the **sole output file** — no `.md` files.
+
+### File naming
+
+One file per engineer, saved to the cycle output folder:
+```
+/Users/dekel.albocher/Documents/Claude/Projects/Performance manager/cycles/<cycle.slug>/output/<FirstName>_<LastName>_<cycle.start>_<cycle.end>.docx
+```
+
+Use ISO date format for dates: `YYYY-MM-DD`. Example:
+```
+/Users/dekel.albocher/Documents/Claude/Projects/Performance manager/cycles/<cycle.slug>/output/Uriel_Silva_<cycle.start>_<cycle.end>.docx
+```
+
+If only a first name is known, use just the first name. Never use a generic filename like `PerfReviews.docx`.
+
+### Document structure
+
+The document should open with a header block containing:
+- **Engineer name and level** (e.g. "Uriel Silva — Senior SE I")
+- **Review period** (e.g. "<cycle.start> – <cycle.end> · <cycle.name>")
+
+Then for each engineer:
+- **Heading 1**: "Data Digest"
+  - **Heading 2**: "From JIRA" — epics, ticket counts, notable tickets
+  - **Heading 2**: "From GitHub" — PRs merged/reviewed, repos
+  - **Heading 2**: "From Slack" — key signals by channel
+  - **Heading 2**: "From 1:1 Notes" — recurring themes
+  - **Heading 2**: "Ladder Signals" — strengths and gaps vs level bar
+- **Heading 1**: "Written Review"
+  - **Heading 2**: "Accomplishments" — the 2–3 narrative paragraphs, followed by peer quotes if provided
+  - **Heading 2**: "Areas for Growth" — the 2–3 narrative paragraphs
+- Team comparison table at the end (if multiple engineers reviewed)
+
+Apply professional formatting: Arial font, 1" margins, US Letter.
+
+Use the `docx` npm library. Key patterns are in the `anthropic-skills:docx` skill — consult it for table, list, and heading patterns.
+
+## Data source availability
+
+Each data source (JIRA, GitHub, Slack, 1:1 notes) is required. If a tool is unavailable or returns an error:
+- **Do not silently fall back to a proxy** (e.g., do not use GitHub PR titles as a substitute for JIRA data)
+- **Stop and tell the user** which tool failed and ask them to check the connection before continuing
+- It is better to produce a partial digest with a clear gap noted than to produce inaccurate data from a substitute source
+
+## Important notes
+
+- **No per-engineer expectations files exist.** The Engineering Ladder is the only calibration reference.
+- **Be specific, not generic.** Every strength and growth area needs a named ticket, PR, or quote. Vague observations without evidence are not useful to the manager.
+- **Be fair and balanced.** Lead with genuine strengths before growth areas. Don't soften growth areas so much they lose their point.
+- **1:1 notes are confidential context.** Use them to inform your analysis but don't quote them verbatim in a way that would embarrass the engineer if shared.
+- **Surface epics, not just tickets.** Showing which product areas the engineer touched demonstrates scope of impact better than a raw ticket count.
+- **If data is missing** (e.g., no GitHub data found, no Slack messages), note the gap explicitly rather than omitting the section — the manager may have additional context.

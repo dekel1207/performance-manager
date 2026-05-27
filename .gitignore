@@ -1,0 +1,17 @@
+# Personal data — never commit
+data/engineer_profiles.json
+data/manager_profiles.json
+data/raw/
+
+# Cycle input/output — contains real reviews and personal documents
+cycles/
+
+# Claude local settings — contains personal MCP UUIDs and hardcoded paths
+.claude/settings.local.json
+
+# Skill eval workspace artifacts
+.claude/skills/engineer-perf-review-workspace/
+
+# macOS
+.DS_Store
+**/.DS_Store
