@@ -12,8 +12,9 @@ You are helping an engineering manager at Braze evaluate individual ICs for a pe
 
 Cycle name, dates, and output folder are defined in:
 ```
-/Users/dekel.albocher/Documents/Claude/Projects/Performance manager/data/cycles.json
+data/cycles.json
 ```
+(relative to the project root — the directory where Claude Code is open)
 
 At skill startup, before doing anything else, resolve the active cycle:
 
@@ -39,8 +40,9 @@ Before asking the user for anything:
 
 ### Engineer profiles file
 ```
-/Users/dekel.albocher/Documents/Claude/Projects/Performance manager/data/engineer_profiles.json
+data/engineer_profiles.json
 ```
+(relative to the project root)
 
 This file stores known identifiers for each engineer. If it exists, load it. Example structure:
 ```json
@@ -60,8 +62,9 @@ This file stores known identifiers for each engineer. If it exists, load it. Exa
 
 ### Raw data cache directory
 ```
-/Users/dekel.albocher/Documents/Claude/Projects/Performance manager/data/raw/
+data/raw/
 ```
+(relative to the project root)
 
 Raw data files are saved per-engineer per-source:
 ```
@@ -79,17 +82,7 @@ data/raw/Uriel_jira_assigned_<cycle.start>_<cycle.end>.json
 
 ## Step 1: Collect runtime inputs
 
-The five engineers in scope for this performance review cycle are:
-
-| Name | Level |
-|------|-------|
-| Uriel | Senior SE I |
-| Sheryan | Senior SE I |
-| Tae | Senior SE I |
-| Kirt | Senior SE II |
-| Anubhav | Senior SE II |
-
-At the start of a session, ask the user which engineer(s) to review.
+At the start of a session, ask the user which engineer(s) to review. If the engineer profiles file was loaded in Step 0, list the known engineers as options. If the user says "do the whole team", review all engineers present in the profiles file.
 
 **Before asking for identifiers**, check the engineer profiles file loaded in Step 0. For any field already known (JIRA account ID, GitHub username, Slack handle, channels, 1:1 doc), use the cached value silently — do not ask for it. Only ask for fields that are missing from the cache.
 
@@ -115,12 +108,13 @@ If the user provides partial info (e.g. just a name), work with what you have an
 
 The ladder lives at:
 ```
-/Users/dekel.albocher/Documents/Claude/Projects/Performance manager/cycles/<cycle.slug>/input/Engineering Ladder.docx
+cycles/<cycle.slug>/input/Engineering Ladder.docx
 ```
+(relative to the project root)
 
 Extract it with:
 ```bash
-pandoc "/Users/dekel.albocher/Documents/Claude/Projects/Performance manager/cycles/<cycle.slug>/input/Engineering Ladder.docx" -o /tmp/eng_ladder.md
+pandoc "cycles/<cycle.slug>/input/Engineering Ladder.docx" -o /tmp/eng_ladder.md
 ```
 
 Use the ladder as the **sole calibration reference** for all ICs. Key levels and their scope:
@@ -152,19 +146,11 @@ Use this as **context** — don't quote raw notes verbatim in the review output.
 
 ## Team OKRs (use for epic impact context)
 
-**FY26Q4 OKRs (Nov 2025 – Jan 2026):**
-- Product Health: Shopify API Version Upgrade — stay within one release of Shopify's latest
-- E2E Testing — comprehensive, reliable E2E automation running on daily cadence
-- System Monitoring — all monitors and alerts per SRE guidance implemented and active
-- Refactor — standardize the integration bridge to improve consistency and enable self-service to other PDE teams
-- eCommerce events GA — release eCommerce conversion event type and add to Campaign/Canvas analytics
+Team OKRs are not embedded in this skill — they vary by team and cycle. To connect engineer work to OKRs:
 
-**FY27Q1 OKRs (Feb – Apr 2026):**
-- eCommerce events feature parity — release Campaign/Canvas revenue; release "Places Order" exit criteria; prepare for eComm events GA release (Delta Cart Updates)
-- Support additional Shopify product data for enterprise — release Shopify tags, metafields, and collections to all customers (all DONE)
-- Granular permissions — add "edit technology partners" permissions (DONE)
-
-When writing epic impact summaries, connect the engineer's work to the relevant OKR. For example: Integration Bridge Refactor maps to the FY26Q4 "Refactor" OKR; Shopify Tags/Collections/Metafields maps to the FY27Q1 "Support additional Shopify product data" OKR.
+1. Ask the user to share the team's OKR page or document for the cycle, or pull it from Confluence if the manager profile includes OKR page references.
+2. Once loaded, use OKRs as context when writing epic impact summaries — connect each engineer's major epics to the relevant OKR where a clear link exists.
+3. If no OKR source is available, write impact summaries based on the epic/project description alone and note the gap.
 
 ## Step 4: Gather JIRA data (project PP)
 
@@ -404,12 +390,13 @@ Before writing the review, save a structured evidence file to the project root. 
 
 ### File path
 ```
-/Users/dekel.albocher/Documents/Claude/Projects/Performance manager/cycles/<cycle.slug>/output/<FirstName>_<LastName>_<cycle.start>_<cycle.end>_evidence.md
+cycles/<cycle.slug>/output/<FirstName>_<LastName>_<cycle.start>_<cycle.end>_evidence.md
 ```
+(relative to the project root)
 
 Example:
 ```
-/Users/dekel.albocher/Documents/Claude/Projects/Performance manager/cycles/<cycle.slug>/output/Uriel_Silva_<cycle.start>_<cycle.end>_evidence.md
+cycles/summer-2026/output/Alice_Smith_2025-11-01_2026-06-15_evidence.md
 ```
 
 ### Evidence file format
@@ -530,12 +517,13 @@ Produce a `.docx` file using the `docx` npm library. This is the **sole output f
 
 One file per engineer, saved to the cycle output folder:
 ```
-/Users/dekel.albocher/Documents/Claude/Projects/Performance manager/cycles/<cycle.slug>/output/<FirstName>_<LastName>_<cycle.start>_<cycle.end>.docx
+cycles/<cycle.slug>/output/<FirstName>_<LastName>_<cycle.start>_<cycle.end>.docx
 ```
+(relative to the project root)
 
 Use ISO date format for dates: `YYYY-MM-DD`. Example:
 ```
-/Users/dekel.albocher/Documents/Claude/Projects/Performance manager/cycles/<cycle.slug>/output/Uriel_Silva_<cycle.start>_<cycle.end>.docx
+cycles/summer-2026/output/Alice_Smith_2025-11-01_2026-06-15.docx
 ```
 
 If only a first name is known, use just the first name. Never use a generic filename like `PerfReviews.docx`.

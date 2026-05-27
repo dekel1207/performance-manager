@@ -7,8 +7,9 @@ Both `engineer-perf-review` and `manager-perf-review` resolve the active perform
 ## Cycle config file path
 
 ```
-/Users/dekel.albocher/Documents/Claude/Projects/Performance manager/data/cycles.json
+data/cycles.json
 ```
+(relative to the project root — the directory where Claude Code is open)
 
 ## Resolution steps
 
