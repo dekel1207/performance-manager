@@ -203,21 +203,27 @@ Each cache file is a JSON array of ticket objects:
 
 ### Live queries (when cache miss or partial coverage)
 
-Use the `mcp__atlassian__searchJiraIssuesUsingJql` tool. Run these queries for the **uncovered** date range only:
+Use the `mcp__atlassian__searchJiraIssuesUsingJql` tool. Run these queries for the **uncovered** date range only.
+
+**Building the project clause:** Use `<cycle.jira_projects>` to construct the JQL project filter:
+- Single project: `project = PP`
+- Multiple projects: `project in (PP, GROW)`
+
+Use `<jira_project_clause>` as a placeholder for this value in the queries below.
 
 #### Primary ownership (tickets assigned and completed by the engineer)
 ```
-project = PP AND assignee = "<jira_account_id>" AND status in (Done, Closed) AND resolutiondate >= "<fetch_start>" AND resolutiondate <= "<fetch_end>"
+<jira_project_clause> AND assignee = "<jira_account_id>" AND status in (Done, Closed) AND resolutiondate >= "<fetch_start>" AND resolutiondate <= "<fetch_end>"
 ```
 
 #### Collaboration (subtasks/tasks within stories owned by others)
 ```
-project = PP AND assignee = "<jira_account_id>" AND issueType in (Sub-task, Task) AND status in (Done, Closed) AND resolutiondate >= "<fetch_start>" AND resolutiondate <= "<fetch_end>"
+<jira_project_clause> AND assignee = "<jira_account_id>" AND issueType in (Sub-task, Task) AND status in (Done, Closed) AND resolutiondate >= "<fetch_start>" AND resolutiondate <= "<fetch_end>"
 ```
 
 #### Initiative/proactiveness (tickets created by the engineer)
 ```
-project = PP AND reporter = "<jira_account_id>" AND created >= "<fetch_start>" AND created <= "<fetch_end>"
+<jira_project_clause> AND reporter = "<jira_account_id>" AND created >= "<fetch_start>" AND created <= "<fetch_end>"
 ```
 
 For **each ticket**, surface:
