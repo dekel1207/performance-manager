@@ -3,6 +3,7 @@
     "name": "Summer Round",
     "slug": "summer-2026",
     "start": "2025-11-01",
-    "end": "2026-06-15"
+    "end": "2026-06-15",
+    "jira_projects": ["PP"]
   }
 ]
