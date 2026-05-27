@@ -30,6 +30,14 @@ At skill startup, before doing anything else, resolve the active cycle:
    - `<cycle.start>` — e.g. "2025-11-01"
    - `<cycle.end>` — e.g. "2026-04-30"
 
+5. Resolve `jira_projects` from the selected cycle entry:
+   - If `jira_projects` is present and non-empty, set `<cycle.jira_projects>` silently and continue.
+   - If `jira_projects` is absent or empty, ask the user:
+     > "Which JIRA project key(s) should I search for this cycle? Enter one or more keys separated by commas (e.g. PP, GROW)."
+   - Parse the response into an array of trimmed uppercase strings.
+   - Save the array back to `data/cycles.json` under the selected cycle entry before proceeding.
+   - Set `<cycle.jira_projects>` to this array.
+
 Only consider data within `<cycle.start>` – `<cycle.end>`. Ignore anything outside this range.
 
 ## Step 0: Load cycle config, engineer profiles, and raw data cache
@@ -89,7 +97,7 @@ At the start of a session, ask the user which engineer(s) to review. If the engi
 If the profiles file is missing or the engineer has no entry, ask for:
 ```
 For each engineer:
-- JIRA username (the display name or account ID used in JIRA project PP)
+- JIRA username (the display name or account ID used in the configured JIRA project(s))
 - GitHub username
 - Slack handle (e.g. @uriel.sharon)
 - Slack channels to check (e.g. #team-canvas, #pp-backend)
@@ -152,7 +160,7 @@ Team OKRs are not embedded in this skill — they vary by team and cycle. To con
 2. Once loaded, use OKRs as context when writing epic impact summaries — connect each engineer's major epics to the relevant OKR where a clear link exists.
 3. If no OKR source is available, write impact summaries based on the epic/project description alone and note the gap.
 
-## Step 4: Gather JIRA data (project PP)
+## Step 4: Gather JIRA data
 
 ### Cache check — do this before any live query
 
