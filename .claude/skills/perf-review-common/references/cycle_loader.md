@@ -32,6 +32,14 @@ data/cycles.json
    - `<cycle.start>` — e.g. "2025-11-01"
    - `<cycle.end>` — e.g. "2026-04-30"
 
+5. Resolve `jira_projects` from the selected cycle entry:
+   - If `jira_projects` is present and non-empty, set `<cycle.jira_projects>` silently and continue.
+   - If `jira_projects` is absent or empty, ask the user:
+     > "Which JIRA project key(s) should I search for this cycle? Enter one or more keys separated by commas (e.g. PP, GROW)."
+   - Parse the response into an array of trimmed uppercase strings.
+   - Save the array back to `data/cycles.json` under the selected cycle entry before proceeding.
+   - Set `<cycle.jira_projects>` to this array.
+
 Only consider data within `<cycle.start>` – `<cycle.end>`. Ignore anything outside this range.
 
 ## Example cycles.json
@@ -42,7 +50,8 @@ Only consider data within `<cycle.start>` – `<cycle.end>`. Ignore anything out
     "name": "Summer Round",
     "slug": "summer-2026",
     "start": "2025-11-01",
-    "end": "2026-04-30"
+    "end": "2026-04-30",
+    "jira_projects": ["PP"]
   }
 ]
 ```
