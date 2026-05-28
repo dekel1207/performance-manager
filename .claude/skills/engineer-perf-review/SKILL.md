@@ -548,6 +548,17 @@ cycles/summer-2026/output/Alice_Smith_2025-11-01_2026-06-15.docx
 
 If only a first name is known, use just the first name. Never use a generic filename like `PerfReviews.docx`.
 
+### Output directory creation
+
+Before writing any file under `cycles/<cycle.slug>/output/`, always create the directory tree if it doesn't exist:
+
+```js
+const path = require('path');
+fs.mkdirSync(path.dirname(outPath), { recursive: true });
+```
+
+This must appear immediately before every `fs.writeFileSync` call — both for `.docx` files and for the evidence `.md` file. Without it, the write will fail on a fresh machine where the directory tree hasn't been created yet.
+
 ### Document structure
 
 The document should open with a header block containing:

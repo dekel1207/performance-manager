@@ -10,6 +10,7 @@ const {
   AlignmentType, LevelFormat
 } = require('docx');
 const fs = require('fs');
+const path = require('path');
 
 function h1(text) {
   return new Paragraph({
@@ -262,6 +263,7 @@ const doc = new Document({
 
 const outPath = '/Users/dekel.albocher/Documents/Claude/Projects/Performance manager/cycles/summer-2026/output/Uriel_Silva_2025-11-01_2026-04-30.docx';
 Packer.toBuffer(doc).then(buf => {
+  fs.mkdirSync(path.dirname(outPath), { recursive: true });
   fs.writeFileSync(outPath, buf);
   console.log('Written:', outPath);
 });
