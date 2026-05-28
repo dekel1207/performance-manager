@@ -533,6 +533,22 @@ After all individual digests, produce a side-by-side comparison table:
 
 Produce a `.docx` file using the `docx` npm library. This is the **sole output file** — no `.md` files.
 
+### Pre-flight: ensure node_modules exists
+
+Before writing any Node script, verify the `docx` dependency is installed:
+
+```bash
+ls scripts/node_modules
+```
+
+If the directory is absent (e.g. fresh clone), install it first:
+
+```bash
+cd scripts && npm install
+```
+
+Then proceed with generation.
+
 ### File naming
 
 One file per engineer, saved to the cycle output folder:

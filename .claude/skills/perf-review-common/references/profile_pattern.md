@@ -7,8 +7,8 @@ Both `engineer-perf-review` (uses `engineer_profiles.json`) and `manager-perf-re
 ## Profile file locations
 
 ```
-/Users/dekel.albocher/Documents/Claude/Projects/Performance manager/data/engineer_profiles.json
-/Users/dekel.albocher/Documents/Claude/Projects/Performance manager/data/manager_profiles.json
+data/engineer_profiles.json
+data/manager_profiles.json
 ```
 
 ## Load behavior

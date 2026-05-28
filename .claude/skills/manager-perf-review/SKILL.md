@@ -417,6 +417,20 @@ Flat list — no nested sections. For SEMs, each bullet is tagged with the team 
 
 ## Step 8: Output to .docx
 
+### Pre-flight: ensure node_modules exists
+
+Before writing any Node script, verify the `docx` dependency is installed:
+
+```bash
+ls scripts/node_modules
+```
+
+If the directory is absent (e.g. fresh clone), install it first:
+
+```bash
+cd scripts && npm install
+```
+
 **File path:**
 ```
 /Users/dekel.albocher/Documents/Claude/Projects/Performance manager/cycles/<cycle.slug>/output/<FirstName>_<LastName>_EM_<cycle.start>_<cycle.end>.docx
