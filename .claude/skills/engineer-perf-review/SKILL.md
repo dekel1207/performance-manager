@@ -68,6 +68,10 @@ This file stores known identifiers for each engineer. If it exists, load it. Exa
 }
 ```
 
+#### First-time setup (file does not exist)
+
+If `data/engineer_profiles.json` does **not** exist, do not ask the user to copy files manually. Instead, proceed directly to Step 1 — the user will name which engineer(s) they want to review, and the profile wizard runs only for those engineers at that point. The file is created (or updated) as profiles are collected, one engineer at a time.
+
 ### Raw data cache directory
 ```
 data/raw/
@@ -90,27 +94,32 @@ data/raw/Uriel_jira_assigned_<cycle.start>_<cycle.end>.json
 
 ## Step 1: Collect runtime inputs
 
-At the start of a session, ask the user which engineer(s) to review. If the engineer profiles file was loaded in Step 0, list the known engineers as options. If the user says "do the whole team", review all engineers present in the profiles file.
+Ask the user which engineer(s) to review. If the profiles file exists and has entries, list the known engineers as options. If the user says "do the whole team", review all engineers in the profiles file.
 
-**Before asking for identifiers**, check the engineer profiles file loaded in Step 0. For any field already known (JIRA account ID, GitHub username, Slack handle, channels, 1:1 doc), use the cached value silently — do not ask for it. Only ask for fields that are missing from the cache.
+**For each engineer to be reviewed**, check their entry in the profiles file:
 
-If the profiles file is missing or the engineer has no entry, ask for:
-```
-For each engineer:
-- JIRA username (the display name or account ID used in the configured JIRA project(s))
-- GitHub username
-- Slack handle (e.g. @uriel.sharon)
-- Slack channels to check (e.g. #team-canvas, #pp-backend)
-- Google Docs link for 1:1 notes
-- Cycle start/end dates (resolved from `data/cycles.json` — do not ask the user for these)
-```
+- **If all required fields are present** (`jira_account_id` or `jira_display_name`, `github_username`, `slack_handle`, `slack_channels`, `one_on_one_doc_id`): use them silently, no prompts.
+- **If the engineer has no entry, or required fields are `null` or missing**: collect their details now with a single message per engineer:
 
-**After collecting any new information**, immediately update the engineer profiles file:
-1. If the file does not exist, create it with the new data.
-2. If it exists, merge the new fields into the existing entry — never overwrite fields that were already present unless the user explicitly corrects them.
-3. Save it back to `data/engineer_profiles.json`.
+  > "I don't have a profile for [Name] yet — let me grab a few details:
+  > - Level (e.g. SE I, SE II, Senior SE I, Senior SE II, Staff)
+  > - Work email (e.g. alice@braze.com)
+  > - JIRA display name (full name as it appears in JIRA)
+  > - JIRA account ID — paste from https://&lt;org&gt;.atlassian.net/people/&lt;account-id&gt; (or type "unknown" — I'll look it up)
+  > - GitHub username
+  > - Slack handle (e.g. @alice.smith)
+  > - Slack channels to check (e.g. #team-backend, #team-eng)
+  > - Google Docs link or ID for your 1:1 notes (or "none")"
 
-If the user provides partial info (e.g. just a name), work with what you have and note gaps. If the user says "do the whole team", review all five engineers.
+  Ask this for one engineer at a time, wait for the response, then move to the next.
+
+**After collecting any new information**, immediately write/update `data/engineer_profiles.json`:
+- If the file does not exist, create it.
+- If it exists, merge into the existing entry — never overwrite a field already set unless the user explicitly corrects it.
+- Store `null` for fields the user marked "unknown" or "none" — do not omit them.
+- Do not ask the user to run any commands or edit the file manually.
+
+**JIRA account ID auto-resolution:** If `jira_account_id` is `null` but `jira_display_name` is known, resolve it automatically during Step 4's first JIRA query and backfill it in the profiles file.
 
 ## Step 2: Read the Engineering Ladder
 
