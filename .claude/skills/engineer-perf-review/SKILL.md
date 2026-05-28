@@ -114,16 +114,13 @@ If the user provides partial info (e.g. just a name), work with what you have an
 
 ## Step 2: Read the Engineering Ladder
 
-The ladder lives at:
-```
-cycles/<cycle.slug>/input/Engineering Ladder.docx
-```
-(relative to the project root)
+The Engineering Ladder is a **fixed company constant** — it is not a per-cycle input and is never supplied by the user. Read it directly from Google Docs using:
 
-Extract it with:
-```bash
-pandoc "cycles/<cycle.slug>/input/Engineering Ladder.docx" -o /tmp/eng_ladder.md
 ```
+Document ID: 1_IqgSPJT2s2rFnWa8QvQFnsCWtsXxZnCHxqik1j9pjA
+```
+
+Use `mcp__gdocs__get_document` with that document ID. Do not ask the user for the ladder; do not look for a local file; do not use pandoc.
 
 Use the ladder as the **sole calibration reference** for all ICs. Key levels and their scope:
 - **SE I** — individual tasks/tickets; building strong engineering foundation
