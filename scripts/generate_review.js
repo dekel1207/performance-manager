@@ -1,3 +1,10 @@
+try {
+  require.resolve('docx');
+} catch {
+  console.error('Error: docx module not found. Run: cd scripts && npm install');
+  process.exit(1);
+}
+
 const {
   Document, Packer, Paragraph, TextRun, HeadingLevel,
   AlignmentType, LevelFormat
