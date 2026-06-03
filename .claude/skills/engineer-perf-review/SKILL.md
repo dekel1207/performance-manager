@@ -1,7 +1,7 @@
 ---
 name: engineer-perf-review
 description: >
-  Evaluates individual software engineers (ICs) for a Braze performance review cycle and produces structured written reviews. Use this skill whenever the user asks to evaluate, review, assess, or write up performance for an engineer or a group of engineers — even if they say things like "write up a review for X", "assess how Y is doing", "compare my engineers", "do the perf cycle for the team", or "help me with performance reviews". This skill orchestrates gathering data from JIRA, GitHub, Slack, and 1:1 notes, calibrates against the Engineering Ladder, and outputs both a chat summary and a .docx file. Always invoke this skill when performance review or engineer evaluation is mentioned.
+  Evaluates individual software engineers (ICs) for a Braze performance review cycle and produces structured written reviews. Use this skill whenever the user asks to evaluate, review, assess, or write up performance for an engineer or a group of engineers — even if they say things like "write up a review for X", "assess how Y is doing", "compare my engineers", "do the perf cycle for the team", or "help me with performance reviews". This skill orchestrates gathering data from JIRA, GitHub, Slack, and 1:1 notes, calibrates against the Engineering Ladder, and outputs a .md file per engineer. Always invoke this skill when performance review or engineer evaluation is mentioned.
 ---
 
 # Engineer Performance Review Skill
@@ -344,17 +344,43 @@ data/raw/<FirstName>_slack_<start>_<end>.json
 
 ### Live queries (when cache miss or partial coverage)
 
-Use `mcp__slack__slack_search_public_and_private` or `mcp__slack__slack_read_channel` for each specified channel. Search for the engineer's handle or display name over the **uncovered** date range only.
+Slack search tools return results sorted by recency and do not accept date-range parameters — **without explicit date splitting, early-cycle months will be silently dropped.** To get full coverage across a 6–7 month cycle, you MUST search month by month.
 
-**Proactively expand channel coverage:** Beyond the channels specified by the user, search for additional relevant channels by looking at what channels the engineer posted in during the cycle (visible in search results). If you find a channel that appears highly relevant (e.g., a project channel named after their main epic, an incident channel, a cross-team channel), include it. Note any additional channels you searched in the digest.
+#### Month-by-month search protocol
 
-Assess:
+Split the uncovered date range into calendar months. For each month, run a separate search using `mcp__slack__slack_search_public_and_private` with a query that includes:
+- The engineer's Slack handle (e.g. `@anubhav.dua`)
+- `after:YYYY-MM-DD before:YYYY-MM-DD` date bounds for that month
+
+Example for November 2025:
+```
+query: "from:@anubhav.dua after:2025-10-31 before:2025-12-01"
+```
+
+Repeat for each calendar month within the uncovered range. Collect all results across months before saving.
+
+**Why month-by-month matters:** A single search over a 7-month window returns only the most recent 20–50 results — months Nov through Feb will be absent. Month-by-month queries guarantee each period gets its own result page.
+
+#### Per-channel deep reads (for configured channels)
+
+After the cross-channel searches, use `mcp__slack__slack_read_channel` on each channel listed in the engineer's `slack_channels` profile field. Read the full channel history and filter client-side to messages within the cycle window that involve the engineer (by handle or display name).
+
+#### Proactively expand channel coverage
+
+From the search results, note any channels the engineer posted in that are not in their profile. If a channel appears relevant (project channel, incident channel, cross-team channel), read it too. Log any additional channels checked in the digest.
+
+#### What to assess per message
+
 - **Helpfulness**: answering questions, unblocking teammates
 - **Technical depth**: quality of explanations, debugging help
 - **Responsiveness**: speed and consistency of engagement
-- **Initiative**: proactively sharing knowledge, raising issues
+- **Initiative**: proactively sharing knowledge, raising issues, flagging risks
 
-**After fetching live data**, immediately save/merge to the cache file before continuing.
+#### Save immediately after collection
+
+After collecting all month-by-month and per-channel results, deduplicate by (channel + timestamp), then save to the cache file before continuing. Do not proceed to Step 7 without saving.
+
+**Coverage check before saving:** Verify you have results from every calendar month in the cycle window. If any month returned zero results, note it explicitly in the digest as "no signal found for [month]" — do not silently omit it.
 
 ## Step 7: Produce a data digest
 
@@ -417,6 +443,12 @@ cycles/<cycle.slug>/output/<FirstName>_<LastName>_<cycle.start>_<cycle.end>_evid
 Example:
 ```
 cycles/summer-2026/output/Alice_Smith_2025-11-01_2026-06-15_evidence.md
+```
+
+Create the output directory if needed before writing:
+
+```bash
+mkdir -p cycles/<cycle.slug>/output
 ```
 
 ### Evidence file format
@@ -511,7 +543,7 @@ Each paragraph follows this pattern:
 
 ### Output format
 
-The output is a single `.docx` file per engineer (see Step 10 for generation details). Do **not** produce a `review_output.md` file. All content — data digest and written review — goes into the `.docx`.
+The output is a single `.md` file per engineer (see Step 10 for file path and structure). All content — data digest and written review — goes into the `.md` file.
 
 ## Step 9: Team comparison (if reviewing multiple engineers)
 
@@ -529,73 +561,70 @@ After all individual digests, produce a side-by-side comparison table:
 - ...
 ```
 
-## Step 10: Generate .docx output
+## Step 10: Write .md output file
 
-Produce a `.docx` file using the `docx` npm library. This is the **sole output file** — no `.md` files.
-
-### Pre-flight: ensure node_modules exists
-
-Before writing any Node script, verify the `docx` dependency is installed:
-
-```bash
-ls scripts/node_modules
-```
-
-If the directory is absent (e.g. fresh clone), install it first:
-
-```bash
-cd scripts && npm install
-```
-
-Then proceed with generation.
+Write a single `.md` file per engineer using the Write tool directly — no scripts, no npm dependencies.
 
 ### File naming
 
 One file per engineer, saved to the cycle output folder:
 ```
-cycles/<cycle.slug>/output/<FirstName>_<LastName>_<cycle.start>_<cycle.end>.docx
+cycles/<cycle.slug>/output/<FirstName>_<LastName>_<cycle.start>_<cycle.end>.md
 ```
 (relative to the project root)
 
 Use ISO date format for dates: `YYYY-MM-DD`. Example:
 ```
-cycles/summer-2026/output/Alice_Smith_2025-11-01_2026-06-15.docx
+cycles/summer-2026/output/Alice_Smith_2025-11-01_2026-06-15.md
 ```
 
-If only a first name is known, use just the first name. Never use a generic filename like `PerfReviews.docx`.
+If only a first name is known, use just the first name. Never use a generic filename like `PerfReviews.md`.
 
 ### Output directory creation
 
-Before writing any file under `cycles/<cycle.slug>/output/`, always create the directory tree if it doesn't exist:
+Before writing the file, create the output directory if it doesn't exist:
 
-```js
-const path = require('path');
-fs.mkdirSync(path.dirname(outPath), { recursive: true });
+```bash
+mkdir -p cycles/<cycle.slug>/output
 ```
-
-This must appear immediately before every `fs.writeFileSync` call — both for `.docx` files and for the evidence `.md` file. Without it, the write will fail on a fresh machine where the directory tree hasn't been created yet.
 
 ### Document structure
 
-The document should open with a header block containing:
-- **Engineer name and level** (e.g. "Uriel Silva — Senior SE I")
-- **Review period** (e.g. "<cycle.start> – <cycle.end> · <cycle.name>")
+```markdown
+# <FirstName> <LastName> — <Level>
+Review Period: <cycle.start> – <cycle.end> · <cycle.name>
 
-Then for each engineer:
-- **Heading 1**: "Data Digest"
-  - **Heading 2**: "From JIRA" — epics, ticket counts, notable tickets
-  - **Heading 2**: "From GitHub" — PRs merged/reviewed, repos
-  - **Heading 2**: "From Slack" — key signals by channel
-  - **Heading 2**: "From 1:1 Notes" — recurring themes
-  - **Heading 2**: "Ladder Signals" — strengths and gaps vs level bar
-- **Heading 1**: "Written Review"
-  - **Heading 2**: "Accomplishments" — the 2–3 narrative paragraphs, followed by peer quotes if provided
-  - **Heading 2**: "Areas for Growth" — the 2–3 narrative paragraphs
-- Team comparison table at the end (if multiple engineers reviewed)
+---
 
-Apply professional formatting: Arial font, 1" margins, US Letter.
+## Data Digest
 
-Use the `docx` npm library. Key patterns are in the `anthropic-skills:docx` skill — consult it for table, list, and heading patterns.
+### From JIRA
+...
+
+### From GitHub
+...
+
+### From Slack
+...
+
+### From 1:1 Notes
+...
+
+### Ladder Signals
+...
+
+---
+
+## Written Review
+
+### Accomplishments
+...
+
+### Areas for Growth
+...
+```
+
+Include the team comparison table at the end of the file when reviewing multiple engineers.
 
 ## Data source availability
 
