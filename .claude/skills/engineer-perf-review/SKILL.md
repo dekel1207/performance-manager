@@ -490,6 +490,8 @@ After delivering the review, if asked "why did you write X?" or "can you give an
 
 Using the data digest from Step 7 and the ladder signals, write the formal performance review for each engineer. This is the manager-facing written review that will be shared with the IC and uploaded to Lattice. It must follow the Braze review writing framework exactly.
 
+**Full writing guide:** `perf-review-common/references/writing_guide.md` — contains complete paragraph structure, dos/don'ts, example paragraphs, and a pre-publish checklist. Read it before writing any review section.
+
 ### Review writing rules (non-negotiable)
 
 **Language and tone:**

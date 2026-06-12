@@ -12,6 +12,13 @@ cycles/
 # Skill eval workspace artifacts
 .claude/skills/engineer-perf-review-workspace/
 
+# Generated per-engineer review scripts (contain real names / personal data)
+scripts/_archive/
+
+# Node build artifacts under scripts/
+scripts/node_modules/
+scripts/package-lock.json
+
 # macOS
 .DS_Store
 **/.DS_Store

@@ -404,6 +404,8 @@ Flat list — no nested sections. For SEMs, each bullet is tagged with the team 
 
 ### Review writing rules (non-negotiable)
 
+**Full writing guide:** `perf-review-common/references/writing_guide.md` — contains complete paragraph structure, dos/don'ts, example paragraphs, SBI model, and a pre-publish checklist. Read it before writing any review section.
+
 - **Past tense throughout** — past performance does not guarantee future behavior
 - **Events not attributes** — "Led CO's Source/Sync GA delivery" not "is an effective leader"
 - **No mixed messages** — achievement bullets contain no negatives; improvement bullets contain no positives

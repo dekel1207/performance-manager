@@ -1,0 +1,7 @@
+- [Discover IRT Slack channels from Datadog](feedback_slack_irt_discovery.md) — IRT channels are `irt-<incident_id>-*`, not `#irt-<team_key>`; pull incident IDs from Datadog first
+- [FY26Q4 OKR pages — parent + title pattern](reference_okr_pages_fy26q4.md) — DATADIV parent 379781224; child titles follow `<Team Name> FY26Q4 OKRs` — search instead of asking
+- [Perf review data collection gaps — surface don't skip](feedback_perf_review_data_gaps.md) — Datadog missing, empty slack_channels, IC reviews, registry warnings, and stale projects_state must all be surfaced explicitly
+- [No em dash in writing](feedback_writing_no_em_dash.md) — Never use — in performance reviews or any written content; use commas or rewrite instead
+- [No vanity metrics in review paragraphs](feedback_writing_no_vanity_metrics.md) — No ticket/PR/subtask counts or epic IDs in achievement prose; use outcomes and delivery signals instead
+- [Review critique: vague behaviors are not "attributes"](feedback_review_critique_attributes_vs_specificity.md) — When a phrase lacks specificity, say it needs a concrete event — don't call it an attribute vs. event problem
+- [Review writing: specific about achievements, not micro-details](feedback_review_specificity_vs_detail.md) — Name the outcome and the notable moment, not every sub-task or small action that composed the achievement
